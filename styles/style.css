@@ -1,0 +1,20 @@
+canvas {
+    border: 1px solid black;
+}
+
+.background {
+    position: absolute;
+    z-index: -1;
+}
+
+.game-cont {
+    position: relative;
+    width: 1200px;
+    height: 800px;
+    overflow: hidden;
+    padding: 0;
+    margin: auto;
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+}
