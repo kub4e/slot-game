@@ -1,140 +1,136 @@
+
+
 const tiles = new Image();
 tiles.src = "./assets/tiles.png"
 
 let rows = 7;
 let cols = 6;
-//var reels = Array.from({length: rows}, () => Array(cols).fill(0));
-var reels = [];
 
 var wdt = 1200;
 var hgh = 800;
 var speed = 50;
-var stPos = [20, 0];
 var tileSz = 150;
+var inSpin = false;
+var reelEls = 10;
+
+/*
+game.x; game.y; game.wdt; game.hgh
+canvasSz; gameSz; tileSz
+gameSz / tileSz
+*/
 
 var canvas = document.querySelector('canvas');
 canvas.width = wdt;
 canvas.height = hgh;
-const ctx = canvas.getContext("2d");
+const ctx1 = canvas.getContext("2d");
 
+class Game {
+    reels = [];
+    constructor(x, y, wdt, hgh) {
+        this.x = x;
+        this.y = y;
+        this.wdt = wdt;
+        this.hgh = hgh;
+    }
+    genReels() {
+        let num = this.calcScreen(tileSz);
+        for (let i = 0; i < num; i++) {
+            let reel = new Reel(reelEls, ctx1);
+            this.reels.push(reel);
+        }
+    }
+    drawGame(ctx) {
+        let num = this.calcScreen(tileSz); // TODO UPDATE HOW TILE SIZE IS PASSED
+        for (let i = 0, tx = 0; i < num; i++, tx+=tileSz) {
+            this.reels[i].drawReel(tx, this.y, ctx);
+        }
+    }
+    calcScreen(tSz) {
+        let numReels = Math.floor(this.wdt/tSz);
+        return numReels;
+    }
+}
 
 class Tile {
-    types = {
+    isDisplayed = false;
+    isWin = false;
+    isOld = false;
+    #types = {
         "cherry": [0, 0],
         "tnt": [150, 0],
         "coin": [300, 0]
     }
-    constructor() {
-        let keys = Object.keys(this.types);
+    constructor(ctx) {
+        this.ctx = ctx;
+        let keys = Object.keys(this.#types);
         this.type = keys[keys.length * Math.random() << 0];
     }
-    draw(x, y) {
-        ctx.drawImage(tiles, this.types[this.type][0], this.types[this.type][1], 150, 150, x, y, 150, 150);
+    drawTile(x, y) {
+        this.ctx.drawImage(tiles, this.#types[this.type][0], this.#types[this.type][1], 150, 150, x, y, 150, 150);
         this.x = x;
         this.y = y;
+        if (this.y <= hgh) {
+            this.isDisplayed = true;
+        } else {
+            this.isDisplayed = false;
+        }
+    }
+    mvDown(speed, ctx) {
+        ctx.clearRect(this.x, this.y, tileSz, tileSz);
+        this.y += speed;
+        this.drawTile(this.x, this.y);     
+    }
+    clear() {
+        this.ctx.clearRect(this.x, this.y, 150, 150)
     }
 }
 
 class Reel {
-    arr = []
-    constructor(eNum) {
+    elements = []
+    constructor(eNum, ctx) {
+        this.ctx = ctx;
         this.eNum = eNum;
-        this.arr.length = this.eNum;
+        this.elements.length = this.eNum;
         for (let i = 0; i < this.eNum; i++) {
-            this.arr[i] = new Tile();
+            this.elements[i] = new Tile(this.ctx);
         }
     }
-    draw(x, y) {
-        for (let i = 0; i < this.arr.length; i++, y+=150) {
-            this.arr[i].draw(x, y);
+    drawReel(x, y, ctx) {
+        this.x = x;
+        this.y = y;
+        for (let i = 0; i < this.eNum; i++, y+=150) {
+            this.elements[(this.eNum-1)-i].drawTile(x, y, ctx);
         }
     }
-    genTile() {
-        this.arr.unshift(new Tile());
+    clear() {
+        for (let i = 0; i < this.eNum; i++) {
+            this.elements[i].clear();
+        }
     }
-    spin(speed) {
-        let arr = this.arr, len = this.eNum;
-        ctx.clearRect(0, 0, wdt, hgh);
-        for (let i = 0; i < len; i++) {
-            arr[i].draw(arr[i].x, arr[i].y);
-            arr[i].y += speed;
-            if (arr[len - 1].y > 800) {
-                this.genTile();
-                this.arr.length -= 1;
+    spin(speed, ctx) {
+        for (let i = 0; i < this.eNum; i++) {
+            this.elements[i].mvDown(speed, ctx);
+            if (this.elements[i].isDisplayed == false) {
+                console.log("test");
+                let tmp = this.elements.pop();
+                tmp.y = this.elements[0].y - tileSz;
+                this.elements.unshift(tmp);
             }
         }
     }
 }
 
-
+let game = new Game(50, 50, wdt, hgh);
 tiles.onload = function () {
-    function initSqc() {
-        for (let i = 0, x = 20; x < wdt; x+=200, i++) {
-            let reel = new Reel(5);
-            reel.draw(x, 0);
-            reels.push(reel);
-        }
-    }
-
-
-    initSqc();
+    game.genReels();
+    game.drawGame(ctx1);
     document.getElementById("spin").addEventListener("click", spinReel);
 }
 
 function spinReel() {
-    for (let i = 0; i < reels.length; i++) {
-        reels[i].spin(50);
+    for (let i = 0; i < game.reels.length; i++) {
+        game.reels[i].spin(10, ctx1);
     }
+
     requestAnimationFrame(spinReel);
 }
-
-
-
-// function genTile(col, x, y) {
-//     reels[col].unshift(new Tile(x, y));
-// }
-
-// function spinReel() {
-
-//     let sTime = performance.now();
-//     function animate() {
-//         const reel =  reels[0];
-    
-//         ctx.clearRect(0, 0, 200, hgh);
-//         for (let i = 0; i < reel.length; i++) {
-//             reel[i].draw(reel[i].x, reel[i].y);
-//             reel[i].y += speed;
-//             if (reel[reel.length - 1].y > 800) {
-//                 genTile(0, reel[0].x, reel[0].y - 150);
-//                 reel.length -= 1;
-//             }
-//         }
-
-//         speed -= 5 * (performance.now() - sTime);
-
-//         if (speed <= 0) {
-
-//             speed = 50;
-//             return;
-//         }
-
-//         requestAnimationFrame(spinReel);
-//     }
-//     animate();
-// }
-
-// tiles.onload = function () {
-//     function initSqc() {
-//         for (let i = 0, x = 20; x < 1200; x+=200, i++) {
-//             for (let j = 0, y = -300; y < 650; y+=150, j++) {
-//                 let tile = new Tile();
-//                 tile.draw(x, y);
-//                 reels[i][j] = tile;
-//             }
-//         }
-//     }
-
-
-//     initSqc();
-//     document.getElementById("spin").addEventListener("click", spinReel);
-// }
