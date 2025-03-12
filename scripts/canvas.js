@@ -1,27 +1,13 @@
-
-
 const tiles = new Image();
 tiles.src = "./assets/tiles.png"
 
-let rows = 7;
-let cols = 6;
-
-var wdt = 1200;
-var hgh = 800;
-var speed = 50;
+var CANVAS_WIDTH = 1200;
+var CANVAS_HEIGHT = 800;
 var tileSz = 150;
-var inSpin = false;
-var reelEls = 10;
-
-/*
-game.x; game.y; game.wdt; game.hgh
-canvasSz; gameSz; tileSz
-gameSz / tileSz
-*/
 
 var canvas = document.querySelector('canvas');
-canvas.width = wdt;
-canvas.height = hgh;
+canvas.width = CANVAS_WIDTH;
+canvas.height = CANVAS_HEIGHT;
 const ctx1 = canvas.getContext("2d");
 
 class Game {
@@ -35,7 +21,7 @@ class Game {
     genReels() {
         let num = this.calcScreen(tileSz);
         for (let i = 0; i < num; i++) {
-            let reel = new Reel(reelEls, ctx1);
+            let reel = new Reel(ctx1, this.y, this.hgh);
             this.reels.push(reel);
         }
     }
@@ -55,24 +41,42 @@ class Tile {
     isDisplayed = false;
     isWin = false;
     isOld = false;
+    #tSz = tileSz;
     #types = {
         "cherry": [0, 0],
         "tnt": [150, 0],
         "coin": [300, 0]
     }
-    constructor(ctx) {
+    constructor(ctx, gTop, gBot) {
+        this.gTop = gTop;
+        this.gBot = gBot;
         this.ctx = ctx;
         let keys = Object.keys(this.#types);
         this.type = keys[keys.length * Math.random() << 0];
     }
     drawTile(x, y) {
-        this.ctx.drawImage(tiles, this.#types[this.type][0], this.#types[this.type][1], 150, 150, x, y, 150, 150);
         this.x = x;
         this.y = y;
-        if (this.y <= hgh) {
+        if (y + this.#tSz >= this.gBot) {
+            if (this.#tSz <= 0) {
+                this.#tSz = 0;
+            }
+            else {
+                this.#tSz -= 1;
+            }
+        }
+        else {
+            this.#tSz = tileSz;
+        }
+        this.ctx.drawImage(tiles, this.#types[this.type][0], this.#types[this.type][1], 150, this.#tSz, x, y, 150, this.#tSz);
+        
+        
+        if (this.y <= this.gBot) {
             this.isDisplayed = true;
         } else {
             this.isDisplayed = false;
+            //this.clear();
+
         }
     }
     mvDown(speed, ctx) {
@@ -87,19 +91,26 @@ class Tile {
 
 class Reel {
     elements = []
-    constructor(eNum, ctx) {
+    constructor(ctx, gTop, gBot) {
+        this.gTop = gTop;
+        this.gBot = gBot;
         this.ctx = ctx;
-        this.eNum = eNum;
+        //this.eNum = eNum;
+        this.eNum = this.calcElements(tileSz, this.gTop, this.gBot);
         this.elements.length = this.eNum;
         for (let i = 0; i < this.eNum; i++) {
-            this.elements[i] = new Tile(this.ctx);
+            this.elements[i] = new Tile(this.ctx, gTop, gBot);
         }
+    }
+    calcElements(tSz, gTop, gBot) {
+        return Math.floor((gBot - gTop) / tSz);
     }
     drawReel(x, y, ctx) {
         this.x = x;
         this.y = y;
         for (let i = 0; i < this.eNum; i++, y+=150) {
-            this.elements[(this.eNum-1)-i].drawTile(x, y, ctx);
+            //this.elements[(this.eNum-1)-i].drawTile(x, y, ctx);
+            this.elements[i].drawTile(x, y, ctx);
         }
     }
     clear() {
@@ -111,7 +122,6 @@ class Reel {
         for (let i = 0; i < this.eNum; i++) {
             this.elements[i].mvDown(speed, ctx);
             if (this.elements[i].isDisplayed == false) {
-                console.log("test");
                 let tmp = this.elements.pop();
                 tmp.y = this.elements[0].y - tileSz;
                 this.elements.unshift(tmp);
@@ -120,16 +130,16 @@ class Reel {
     }
 }
 
-let game = new Game(50, 50, wdt, hgh);
+let game = new Game(50, -300, 1200, 800);
 tiles.onload = function () {
     game.genReels();
     game.drawGame(ctx1);
     document.getElementById("spin").addEventListener("click", spinReel);
 }
 
-function spinReel() {
+async function spinReel() {
     for (let i = 0; i < game.reels.length; i++) {
-        game.reels[i].spin(10, ctx1);
+        game.reels[0].spin(10, ctx1);
     }
 
     requestAnimationFrame(spinReel);
